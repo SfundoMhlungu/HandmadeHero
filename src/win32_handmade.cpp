@@ -324,8 +324,9 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
       int BytesPerSample =sizeof(int16)*2;
       int16 ToneVolume = 6000;
       int SecondaryBufferSize = SamplesPersecond *BytesPerSample;
-  //    win32initDsound(Window, SamplesPersecond, SecondaryBufferSize);
-//      GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+      // START OF SOUND STAFF
+       win32initDsound(Window, SamplesPersecond, SecondaryBufferSize);
+       GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
       while (Running) {
 
         // let's flush all the messages before we do anything else
@@ -360,64 +361,66 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
         // done processing queue
        renderWeirdGradient(&Globalbuffer,Xoff, Yoff);
        
-    //
-    // DWORD PlayCursorPosition;
-    // DWORD WriteCursorPosition;
-    //  if(SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursorPosition, &WriteCursorPosition))){
-    //
-    //  
-    //      
-    //      DWORD ByteToLock = RunningSampleIndex*BytesPerSample %  SecondaryBufferSize;
-    //      DWORD BytesTowrite;
-    //      if(ByteToLock > PlayCursorPosition){
-    //        BytesTowrite = SecondaryBufferSize - ByteToLock;
-    //        BytesTowrite += PlayCursorPosition;
-    //      }else{
-    //        BytesTowrite = PlayCursorPosition - ByteToLock;
-    //      }
-    //
-    //       // int16  int16      - single sample
-    //      // [LEFT  RIGHT]
-    //      VOID *Region1;
-    //      DWORD Region1Size;
-    //
-    //      VOID *Region2; 
-    //      DWORD Region2Size;
-    //     if(SUCCEEDED(GlobalSecondaryBuffer->Lock(
-    //      ByteToLock, 
-    //      BytesTowrite,
-    //      &Region1,
-    //      &Region1Size,
-    //      &Region2,
-    //      &Region2Size,
-    //      0))){
-    //      
-    //     int16 *SampleOut = (int16 *)Region1;
-    //     
-    //      DWORD Region1SampleCount = Region1Size/BytesPerSample;
-    //      DWORD Region2SampleCount = Region2Size/BytesPerSample;
-    //     for(DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex){
-    //    
-    //
-    //        int16 SampleValue =  ((RunningSampleIndex / HalfSquareWavePeriod)%2) ? ToneVolume : -ToneVolume;; 
-    //        *SampleOut++ = SampleValue;
-    //        *SampleOut++ = SampleValue;
-    //        ++RunningSampleIndex;
-    //     
-    //     }
-    //    SampleOut = (int16 *)Region2;
-    //     for(DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex){
-    //         
-    //
-    //        int16 SampleValue =  ((RunningSampleIndex / HalfSquareWavePeriod)%2) ? ToneVolume : -ToneVolume;
-    //        *SampleOut++ = SampleValue;
-    //        *SampleOut++ = SampleValue;
-    //         ++RunningSampleIndex;
-    //     }
-    //
-    //     }
-    //
-    //  };
+    //   TODO SOUND START
+    DWORD PlayCursorPosition;
+    DWORD WriteCursorPosition;
+     if(SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursorPosition, &WriteCursorPosition))){
+    
+     
+         
+         DWORD ByteToLock = RunningSampleIndex*BytesPerSample %  SecondaryBufferSize;
+         DWORD BytesTowrite;
+         if(ByteToLock > PlayCursorPosition){
+           BytesTowrite = SecondaryBufferSize - ByteToLock;
+           BytesTowrite += PlayCursorPosition;
+         }else{
+           BytesTowrite = PlayCursorPosition - ByteToLock;
+         }
+    
+          // int16  int16      - single sample
+         // [LEFT  RIGHT]
+         VOID *Region1;
+         DWORD Region1Size;
+    
+         VOID *Region2; 
+         DWORD Region2Size;
+        if(SUCCEEDED(GlobalSecondaryBuffer->Lock(
+         ByteToLock, 
+         BytesTowrite,
+         &Region1,
+         &Region1Size,
+         &Region2,
+         &Region2Size,
+         0))){
+         
+        int16 *SampleOut = (int16 *)Region1;
+        
+         DWORD Region1SampleCount = Region1Size/BytesPerSample;
+         DWORD Region2SampleCount = Region2Size/BytesPerSample;
+        for(DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex){
+       
+    
+           int16 SampleValue =  ((RunningSampleIndex / HalfSquareWavePeriod)%2) ? ToneVolume : -ToneVolume;; 
+           *SampleOut++ = SampleValue;
+           *SampleOut++ = SampleValue;
+           ++RunningSampleIndex;
+        
+        }
+       SampleOut = (int16 *)Region2;
+        for(DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex){
+            
+    
+           int16 SampleValue =  ((RunningSampleIndex / HalfSquareWavePeriod)%2) ? ToneVolume : -ToneVolume;
+           *SampleOut++ = SampleValue;
+           *SampleOut++ = SampleValue;
+            ++RunningSampleIndex;
+        }
+    
+        }
+    
+     };
+
+    // TODO  SOUND END
       HDC DeviceContext = GetDC(Window);
         RECT ClientRect;
         GetClientRect(Window, &ClientRect);

@@ -5,11 +5,17 @@
 #include <stdint.h>
 #include <windows.h>
 #include <xinput.h>
+#include <math.h>
 // #pragma comment(lib, "winmm.lib")
+
+
+
 
 #define internal static
 #define local_persist static
 #define global_var static
+#define PI32 3.14159265357f;
+
 typedef int32_t int32;
 typedef uint8_t uint8;
 typedef uint32_t uint32;
@@ -17,7 +23,10 @@ typedef uint32_t uint32;
 typedef int16_t int16;
 typedef int32 bool32;
 
+typedef float real32;
+typedef double real64;
 
+#include "handmade.cpp"
 struct  win32_offscreen_buffer {
   BITMAPINFO Info;
   void *Memory;
@@ -27,7 +36,20 @@ struct  win32_offscreen_buffer {
   int BytesPerPixel;
 };
 
+struct win32_sound_output {
+         int TonesPerSecondHz;
+      uint32 RunningSampleIndex;
+      int WavePeriod;
+      int HalfWavePeriod;
+      int BytesPerSample;
+      int16 ToneVolume;
+       int SamplesPersecond;
+         int SecondaryBufferSize;
+      };
+
+
 global_var bool Running;
+global_var bool isSoundPlaying;
 global_var BITMAPINFO Bitmapinfo;
 global_var void *BitmapMemory;
 global_var int bitMapwidth;
@@ -269,11 +291,66 @@ LRESULT CALLBACK MainWindowCallBack(HWND window, UINT message, WPARAM WParam,
     // std::cout << "UNHANDLED" << std::endl;
     // we call DefWindowProc to handle all the message we dont care about, and
     // will return the relevant LRESULT
-    { Result = DefWindowProc(window, message, WParam, LParam); }
+    { Result = DefWindowProcA(window, message, WParam, LParam); }
     break;
   }
   return (Result);
 };
+
+
+
+
+
+
+
+internal void win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteToLock, DWORD BytesTowrite){
+   // int16  int16      - single sample
+         // [LEFT  RIGHT]
+         VOID *Region1;
+         DWORD Region1Size;
+    
+         VOID *Region2; 
+         DWORD Region2Size;
+        if(SUCCEEDED(GlobalSecondaryBuffer->Lock(
+         ByteToLock, 
+         BytesTowrite,
+         &Region1,
+         &Region1Size,
+         &Region2,
+         &Region2Size,
+         0))){
+         
+        int16 *SampleOut = (int16 *)Region1;
+        
+         DWORD Region1SampleCount = Region1Size/SoundOutput->BytesPerSample;
+         DWORD Region2SampleCount = Region2Size/SoundOutput->BytesPerSample;
+        for(DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex){
+       
+           real32 t = 2.0f*3.14159265357f*(real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod;
+           real32 SineValue = sinf(t);
+           int16 SampleValue =  (int16)(SineValue * SoundOutput->ToneVolume);
+           *SampleOut++ = SampleValue;
+           *SampleOut++ = SampleValue;
+           ++SoundOutput->RunningSampleIndex;
+        
+        }
+       SampleOut = (int16 *)Region2;
+        for(DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex){
+            
+    
+           real32 t = 2.0f*3.14159265357f*(real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod;
+           real32 SineValue = sinf(t);
+           int16 SampleValue =  (int16)(SineValue * SoundOutput->ToneVolume);
+           *SampleOut++ = SampleValue;
+           *SampleOut++ = SampleValue;
+            ++SoundOutput->RunningSampleIndex;
+        }
+
+           GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
+        }
+}
+
+
 
 int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
                      PSTR CommandLine, int showCode) {
@@ -312,21 +389,31 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
       // windows put all messages that are trying to commune with us in a queue,
       // we need to start that loop and consuem
       // Correct.
+
+     
       Running = true;
-      int SamplesPersecond = 48000;
+      isSoundPlaying = false;
+     
       int Xoff = 0;
       int Yoff = 0;
-      int TonesPerSecondHz = 256;
+      win32_sound_output  SoundOutput = {};
+      SoundOutput.TonesPerSecondHz = 256;
+      SoundOutput.RunningSampleIndex =0;
+      SoundOutput.SamplesPersecond = 48000;
+      SoundOutput.WavePeriod =  SoundOutput.SamplesPersecond/SoundOutput.TonesPerSecondHz;
+      SoundOutput.HalfWavePeriod = SoundOutput.WavePeriod/2;
+      SoundOutput.BytesPerSample =sizeof(int16)*2;
+      SoundOutput.ToneVolume = 6000;
+     
+       SoundOutput.SecondaryBufferSize = SoundOutput.SamplesPersecond *SoundOutput.BytesPerSample;
       
-      uint32 RunningSampleIndex =0;
-      int SquareWavePeriod =  SamplesPersecond/TonesPerSecondHz;
-      int HalfSquareWavePeriod = SquareWavePeriod/2;
-      int BytesPerSample =sizeof(int16)*2;
-      int16 ToneVolume = 6000;
-      int SecondaryBufferSize = SamplesPersecond *BytesPerSample;
+    
+    
       // START OF SOUND STAFF
-       win32initDsound(Window, SamplesPersecond, SecondaryBufferSize);
-       GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+       win32initDsound(Window, SoundOutput.SamplesPersecond, SoundOutput.SecondaryBufferSize);
+       win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.SecondaryBufferSize);
+      GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+    
       while (Running) {
 
         // let's flush all the messages before we do anything else
@@ -359,7 +446,13 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
         //   }
         // }
         // done processing queue
-       renderWeirdGradient(&Globalbuffer,Xoff, Yoff);
+      //  renderWeirdGradient(&Globalbuffer,Xoff, Yoff);
+         game_offscreen_buffer Buffer;
+         Buffer.Memory = Globalbuffer.Memory;
+         Buffer.Height = Globalbuffer.Height;
+         Buffer.Width = Globalbuffer.Width;
+         Buffer.Picth = Globalbuffer.Picth;
+         GameUpdateAndRender(&Buffer, Xoff, Yoff);
        
     //   TODO SOUND START
     DWORD PlayCursorPosition;
@@ -368,58 +461,25 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
     
      
          
-         DWORD ByteToLock = RunningSampleIndex*BytesPerSample %  SecondaryBufferSize;
+         DWORD ByteToLock = (SoundOutput.RunningSampleIndex*SoundOutput.BytesPerSample) %  SoundOutput.SecondaryBufferSize;
          DWORD BytesTowrite;
-         if(ByteToLock > PlayCursorPosition){
-           BytesTowrite = SecondaryBufferSize - ByteToLock;
+         if(ByteToLock == PlayCursorPosition){
+           BytesTowrite = 0;
+         }else if(ByteToLock > PlayCursorPosition){
+           BytesTowrite = SoundOutput.SecondaryBufferSize - ByteToLock;
            BytesTowrite += PlayCursorPosition;
          }else{
            BytesTowrite = PlayCursorPosition - ByteToLock;
          }
     
-          // int16  int16      - single sample
-         // [LEFT  RIGHT]
-         VOID *Region1;
-         DWORD Region1Size;
-    
-         VOID *Region2; 
-         DWORD Region2Size;
-        if(SUCCEEDED(GlobalSecondaryBuffer->Lock(
-         ByteToLock, 
-         BytesTowrite,
-         &Region1,
-         &Region1Size,
-         &Region2,
-         &Region2Size,
-         0))){
-         
-        int16 *SampleOut = (int16 *)Region1;
-        
-         DWORD Region1SampleCount = Region1Size/BytesPerSample;
-         DWORD Region2SampleCount = Region2Size/BytesPerSample;
-        for(DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex){
-       
-    
-           int16 SampleValue =  ((RunningSampleIndex / HalfSquareWavePeriod)%2) ? ToneVolume : -ToneVolume;; 
-           *SampleOut++ = SampleValue;
-           *SampleOut++ = SampleValue;
-           ++RunningSampleIndex;
-        
-        }
-       SampleOut = (int16 *)Region2;
-        for(DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex){
-            
-    
-           int16 SampleValue =  ((RunningSampleIndex / HalfSquareWavePeriod)%2) ? ToneVolume : -ToneVolume;
-           *SampleOut++ = SampleValue;
-           *SampleOut++ = SampleValue;
-            ++RunningSampleIndex;
-        }
-    
-        }
-    
+       win32FillSoundBuffer(&SoundOutput, ByteToLock, BytesTowrite);
+      
      };
 
+      // if(!isSoundPlaying){
+      //     GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+      //     isSoundPlaying = true;
+      // }
     // TODO  SOUND END
       HDC DeviceContext = GetDC(Window);
         RECT ClientRect;
@@ -432,7 +492,7 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
         ReleaseDC(Window, DeviceContext);
 
           Xoff += 1;
-          Yoff += 2;
+          // Yoff += 2;
         // get message loop blocks when there is no message and wait
         // we need to change to a peek message loop
         // the render before  to animate for now
@@ -443,6 +503,7 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
         // } else {
         //   break;
         // }
+     
       }
     } else {
       // TODO(sk): Logging

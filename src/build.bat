@@ -1,6 +1,6 @@
 @echo off
 
-mkdir ..\..\build
+IF NOT EXIST ..\..\build mkdir ..\..\build
 pushd ..\..\build
 
 REM Compiling C++ file with MinGW

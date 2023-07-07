@@ -70,6 +70,6 @@ internal void renderWeirdGradient(game_offscreen_buffer *buffer,  int Xoffset, i
 internal void GameUpdateAndRender(game_offscreen_buffer *buffer, int BlueOffset, int GreenOffset, game_output_sound_buffer *SoundBuffer){
 
     gameOutPutSound(SoundBuffer);
-    renderWeirdGradient(buffer, BlueOffset, GreenOffset);
+    // renderWeirdGradient(buffer, BlueOffset, GreenOffset);
     
 };

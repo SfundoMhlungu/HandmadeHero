@@ -457,8 +457,12 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
       //  win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.SecondaryBufferSize, &);
       win32ClearSoundBuffer(&SoundOutput);
       GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+  #if 0
       int16 *Samples = (int16 *)VirtualAlloc(0, SoundOutput.SecondaryBufferSize, MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
-    
+  #else
+      int16 *Samples = (int16 *)alloca(SoundOutput.SecondaryBufferSize);
+
+  #endif
       while (Running) {
 
         // let's flush all the messages before we do anything else

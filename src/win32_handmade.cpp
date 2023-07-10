@@ -39,12 +39,12 @@ struct  win32_offscreen_buffer {
 };
 
 struct win32_sound_output {
-         int TonesPerSecondHz;
+        //  int TonesPerSecondHz;
       uint32 RunningSampleIndex;
-      int WavePeriod;
-      int HalfWavePeriod;
+      // int WavePeriod;
+      // int HalfWavePeriod;
       int BytesPerSample;
-      int16 ToneVolume;
+      // int16 ToneVolume;
        int SamplesPersecond;
          int SecondaryBufferSize;
            int LatencySampleCount;
@@ -60,6 +60,79 @@ global_var int bitMapheight;
 global_var int BytesPerPixel = 4;
 global_var LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global_var win32_offscreen_buffer Globalbuffer;
+
+
+
+
+ internal debug_file_result DEBUGPlatformReadEntireFile(char *Filename){
+    void *Result = 0;
+     debug_file_result fileResult = {};
+  // Locate it in the physical so we can talk about it, I'll tell ya what to do withit
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING,0, 0);
+
+    if(FileHandle != INVALID_HANDLE_VALUE){
+           LARGE_INTEGER FileSize;
+           if(GetFileSizeEx(FileHandle, &FileSize)){
+               uint32 FileSize32 = safeTruncate64(FileSize.QuadPart);
+               // WE NORMALLY USE HEAP ALLOC FOR FILES, virtual is for large things
+                fileResult.ContentSize = FileSize32;
+               Result = VirtualAlloc(0, FileSize32, MEM_COMMIT, PAGE_READWRITE);
+               if(Result){
+                    DWORD BytesRead;
+                  if(ReadFile(FileHandle, Result,FileSize32,&BytesRead, 0) && (FileSize32 == BytesRead)){
+
+                  }else{
+                     DEBUGPlatformFreeFileMemory(Result);
+                     Result = 0;
+                  }
+               }else{
+
+               }
+           }
+
+
+           CloseHandle(FileHandle);
+    }else{
+        std::cout << "FAILED TO OPEN FILE" << std::endl;
+    }
+   
+    fileResult.Contents = Result;
+    return (fileResult);
+ };
+ internal void DEBUGPlatformFreeFileMemory(void *Memory){
+    if(Memory){
+      VirtualFree(Memory, 0, MEM_RELEASE);
+    }
+
+ };
+
+  internal bool32 DEBUGPlatformWriteEntireFile(char *Filename, uint32_t MemorySize, void *Memory){
+      HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,0, 0);
+       bool32 Result = false;
+        if(FileHandle != INVALID_HANDLE_VALUE){
+         
+               // WE NORMALLY USE HEAP ALLOC FOR FILES, virtual is for large things
+               
+            
+                  DWORD BytesWritten;
+                  if(WriteFile(FileHandle, Memory,MemorySize,&BytesWritten, 0)){
+                  Result = (BytesWritten == MemorySize);
+                  }else{
+                      std::cout << "FAILED TO WRITE FILE" << std::endl;
+                  }
+
+                CloseHandle(FileHandle);
+           }else{
+              std::cout << "FAILED TO CREATE  FILE HANDLE" << std::endl;
+           }
+
+      return (Result);
+          
+    }
+    
+
+
+
 
 #define DIRECT_SOUND_CREATE(name)                                              \
   HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDs,              \
@@ -439,13 +512,13 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
       int Xoff = 0;
       int Yoff = 0;
       win32_sound_output  SoundOutput = {};
-      SoundOutput.TonesPerSecondHz = 256;
+      // SoundOutput.TonesPerSecondHz = 256;
       SoundOutput.RunningSampleIndex =0;
       SoundOutput.SamplesPersecond = 48000;
-      SoundOutput.WavePeriod =  SoundOutput.SamplesPersecond/SoundOutput.TonesPerSecondHz;
-      SoundOutput.HalfWavePeriod = SoundOutput.WavePeriod/2;
+      // SoundOutput.WavePeriod =  SoundOutput.SamplesPersecond/SoundOutput.TonesPerSecondHz;
+      // SoundOutput.HalfWavePeriod = SoundOutput.WavePeriod/2;
       SoundOutput.BytesPerSample =sizeof(int16)*2;
-      SoundOutput.ToneVolume = 5000;
+      // SoundOutput.ToneVolume = 5000;
       SoundOutput.LatencySampleCount = SoundOutput.SamplesPersecond /15;
      
        SoundOutput.SecondaryBufferSize = SoundOutput.SamplesPersecond *SoundOutput.BytesPerSample;
@@ -457,16 +530,32 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
       //  win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.SecondaryBufferSize, &);
       win32ClearSoundBuffer(&SoundOutput);
       GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
-  #if 0
+  #if 1
       int16 *Samples = (int16 *)VirtualAlloc(0, SoundOutput.SecondaryBufferSize, MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
   #else
       int16 *Samples = (int16 *)alloca(SoundOutput.SecondaryBufferSize);
 
   #endif
+      game_memory Memory = {};
+      Memory.PermanentStorageSize = Megabytes(64);
+      Memory.PermanentStorage = VirtualAlloc(0,  Memory.PermanentStorageSize , MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+
+      Memory.TransientStorageSize = Gigabytes(uint64_t(2));
+      Memory.TransientStorage = VirtualAlloc(0,  Memory.TransientStorageSize , MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+
+      //TODO(sk) check if samples and game memory were assigned correctly with an if, if not do not play the game
+      if(Samples && Memory.PermanentStorage && Memory.TransientStorage){
+        std::cout << "Mem allocated" << std::endl;
+      }else{
+         std::cout << "Mem allocated failed" << std::endl;
+        Running = false;
+        return 1;
+      }
       while (Running) {
 
         // let's flush all the messages before we do anything else
         MSG msg;
+        game_input Input = {};
         while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
 
           if (msg.message == WM_QUIT) {
@@ -476,6 +565,7 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
           TranslateMessage(&msg);
           DispatchMessage(&msg);
         }
+        // TODO(DAY 13): 44 minutes  to 105
         // for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
         //   XINPUT_STATE state;
         //   ZeroMemory(&state, sizeof(XINPUT_STATE));
@@ -532,7 +622,7 @@ int APIENTRY WinMain(HINSTANCE Instance, HINSTANCE PrevInstance,
          Buffer.Height = Globalbuffer.Height;
          Buffer.Width = Globalbuffer.Width;
          Buffer.Picth = Globalbuffer.Picth;
-         GameUpdateAndRender(&Buffer, Xoff, Yoff, &SoundBuffer);
+         GameUpdateAndRender(&Memory, &Input, &Buffer, &SoundBuffer);
        
     //   TODO SOUND START
    

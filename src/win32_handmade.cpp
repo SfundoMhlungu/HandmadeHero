@@ -64,7 +64,7 @@ global_var win32_offscreen_buffer Globalbuffer;
 
 
 
- internal debug_file_result DEBUGPlatformReadEntireFile(char *Filename){
+ internal debug_file_result DEBUGPlatformReadEntireFile(const char *Filename){
     void *Result = 0;
      debug_file_result fileResult = {};
   // Locate it in the physical so we can talk about it, I'll tell ya what to do withit
@@ -221,8 +221,8 @@ internal void renderWeirdGradient(win32_offscreen_buffer *buffer,  int Xoffset, 
       // BB GG RR XX
 
       // BLUE
-      uint8 Blue = (X + Xoffset);
-      uint8 Green = (Y + Yoffset);
+      uint8 Blue = uint8(X + Xoffset);
+      uint8 Green = uint8(Y + Yoffset);
 
       *Pixel++ = ((Green << 8) | Blue);
    
@@ -314,7 +314,7 @@ LRESULT CALLBACK MainWindowCallBack(HWND window, UINT message, WPARAM WParam,
   case WM_KEYUP: {
     // returns VIRTUAL KEYCODES, listing on mdn
 
-    uint32 VKCode = WParam;
+    uint32 VKCode = (uint32)WParam;
     // lparam tells the previous state of the key
     // the 30 bit (1 << 30) tells us if it was previously down(last frame)
     bool wasDown = ((LParam & (1 << 30)) != 0);

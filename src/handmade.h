@@ -22,7 +22,7 @@ struct debug_file_result{
 void *  Contents;
 uint32_t ContentSize;
 };
- internal debug_file_result DEBUGPlatformReadEntireFile(char *Filename);
+ internal debug_file_result DEBUGPlatformReadEntireFile(const char *Filename);
  internal void DEBUGPlatformFreeFileMemory(void *Memory);
 
   internal bool32 DEBUGPlatformWriteEntireFile(char *Filename, uint32_t MemorySize, void *Memory);

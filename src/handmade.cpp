@@ -31,7 +31,7 @@ internal void gameOutPutSound(game_output_sound_buffer *SoundBuffer, int ToneHz)
        
           //  real32 t = sinf(tSine);
            real32 SineValue = sinf(tSine);
-           int16 SampleValue =  (int16)(SineValue * ToneVolume);
+           int16 SampleValue =  (int16)(SineValue * (real32)ToneVolume);
            *SampleOut++ = SampleValue;
            *SampleOut++ = SampleValue;
        
@@ -55,8 +55,8 @@ internal void renderWeirdGradient(game_offscreen_buffer *buffer,  int Xoffset, i
       // BB GG RR XX
 
       // BLUE
-      uint8 Blue = (X + Xoffset);
-      uint8 Green = (Y + Yoffset);
+      uint8 Blue = uint8(X + Xoffset);
+      uint8 Green = uint8(Y + Yoffset);
 
       *Pixel++ = ((Green << 8) | Blue);
    
@@ -75,7 +75,7 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_o
 
   
     if(!Memory->isInitialized){
-        char *Filename = __FILE__;
+       const char *Filename = __FILE__;
        debug_file_result  fileResult =  DEBUGPlatformReadEntireFile(Filename);
 
         if(fileResult.Contents){
@@ -95,7 +95,7 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_o
     }
     if(Input0->IsAnalog){
        GameState->ToneHz = 256 + (int)(128.0f *(Input0->EndX));
-      GameState->BlueOffset += (int)4.0f*(Input0->EndY);
+      GameState->BlueOffset += (int)(4.0f*(Input0->EndY));
     }else{
 
     }
